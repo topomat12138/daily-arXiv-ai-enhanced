@@ -741,10 +741,8 @@ function parseJsonlData(jsonlText, date) {
         details: paper.summary || '',
         date: date,
         id: paper.id,
-        motivation: paper.AI && paper.AI.motivation ? paper.AI.motivation : '',
         method: paper.AI && paper.AI.method ? paper.AI.method : '',
-        result: paper.AI && paper.AI.result ? paper.AI.result : '',
-        conclusion: paper.AI && paper.AI.conclusion ? paper.AI.conclusion : '',
+        tags: paper.AI && paper.AI.tags ? paper.AI.tags : '',
         code_url: paper.code_url || '',
         code_stars: paper.code_stars || 0,
         code_last_update: paper.code_last_update || ''
@@ -935,10 +933,8 @@ function renderPapers() {
         Array.isArray(a.category) ? a.category.join(', ') : a.category,
         a.summary,
         a.details || '',
-        a.motivation || '',
         a.method || '',
-        a.result || '',
-        a.conclusion || ''
+        a.tags || ''
       ].join(' ').toLowerCase();
       const hayB = [
         b.title,
@@ -946,10 +942,8 @@ function renderPapers() {
         Array.isArray(b.category) ? b.category.join(', ') : b.category,
         b.summary,
         b.details || '',
-        b.motivation || '',
         b.method || '',
-        b.result || '',
-        b.conclusion || ''
+        b.tags || ''
       ].join(' ').toLowerCase();
       const am = hayA.includes(q);
       const bm = hayB.includes(q);
@@ -966,10 +960,8 @@ function renderPapers() {
         Array.isArray(p.category) ? p.category.join(', ') : p.category,
         p.summary,
         p.details || '',
-        p.motivation || '',
         p.method || '',
-        p.result || '',
-        p.conclusion || ''
+        p.tags || ''
       ].join(' ').toLowerCase();
       const matched = hay.includes(q);
       p.isMatched = matched;
@@ -1279,22 +1271,13 @@ function showPaperDetails(paper, paperIndex) {
     ? highlightMatches(abstractText, modalTitleTerms, 'keyword-highlight') 
     : abstractText;
   
-  // 高亮其他部分（如果存在且是摘要的一部分）
-  const highlightedMotivation = paper.motivation && modalTitleTerms.length > 0 
-    ? highlightMatches(paper.motivation, modalTitleTerms, 'keyword-highlight') 
-    : paper.motivation;
-  
   const highlightedMethod = paper.method && modalTitleTerms.length > 0 
     ? highlightMatches(paper.method, modalTitleTerms, 'keyword-highlight') 
     : paper.method;
   
-  const highlightedResult = paper.result && modalTitleTerms.length > 0 
-    ? highlightMatches(paper.result, modalTitleTerms, 'keyword-highlight') 
-    : paper.result;
-  
-  const highlightedConclusion = paper.conclusion && modalTitleTerms.length > 0 
-    ? highlightMatches(paper.conclusion, modalTitleTerms, 'keyword-highlight') 
-    : paper.conclusion;
+  const highlightedTags = paper.tags && modalTitleTerms.length > 0 
+    ? highlightMatches(paper.tags, modalTitleTerms, 'keyword-highlight') 
+    : paper.tags;
   
   // 判断是否需要显示高亮说明
   const showHighlightLegend = activeKeywords.length > 0 || activeAuthors.length > 0;
@@ -1313,10 +1296,8 @@ function showPaperDetails(paper, paperIndex) {
       <p>${highlightedSummary}</p>
       
       <div class="paper-sections">
-        ${paper.motivation ? `<div class="paper-section"><h4>Motivation</h4><p>${highlightedMotivation}</p></div>` : ''}
         ${paper.method ? `<div class="paper-section"><h4>Method</h4><p>${highlightedMethod}</p></div>` : ''}
-        ${paper.result ? `<div class="paper-section"><h4>Result</h4><p>${highlightedResult}</p></div>` : ''}
-        ${paper.conclusion ? `<div class="paper-section"><h4>Conclusion</h4><p>${highlightedConclusion}</p></div>` : ''}
+        ${paper.tags ? `<div class="paper-section"><h4>Tags</h4><p>${highlightedTags}</p></div>` : ''}
       </div>
       
       ${highlightedAbstract ? `<h3>Abstract</h3><p class="original-abstract">${highlightedAbstract}</p>` : ''}

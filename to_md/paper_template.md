@@ -1,21 +1,14 @@
 ### [{idx}] [{title}]({url})
 *{authors}*
 
-Main category: {cate}
+**Category**: {cate}  
+**Abstract**: [arXiv]({url})
 
-TL;DR: {tldr}
-
+**TL;DR**: {tldr}  
+**Method**: {method}  
+**Tags**: `{tags}`
 
 <details>
-  <summary>Details</summary>
-Motivation: {motivation}
-
-Method: {method}
-
-Result: {result}
-
-Conclusion: {conclusion}
-
-Abstract: {summary}
-
+  <summary>Abstract</summary>
+{summary}
 </details>

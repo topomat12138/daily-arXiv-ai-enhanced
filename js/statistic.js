@@ -746,10 +746,8 @@ function parseJsonlData(jsonlText, date) {
         details: paper.summary || '',
         date: date,
         id: paper.id,
-        motivation: paper.AI && paper.AI.motivation ? paper.AI.motivation : '',
         method: paper.AI && paper.AI.method ? paper.AI.method : '',
-        result: paper.AI && paper.AI.result ? paper.AI.result : '',
-        conclusion: paper.AI && paper.AI.conclusion ? paper.AI.conclusion : ''
+        tags: paper.AI && paper.AI.tags ? paper.AI.tags : ''
       });
     } catch (error) {
       console.error('解析JSON行失败:', error, line);
