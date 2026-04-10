@@ -211,7 +211,7 @@ def main():
     )
     
     # 保存结果
-    with open(target_file, "w") as f:
+    with open(target_file, "w", encoding="utf-8") as f:
         for item in processed_data:
             if item is not None:
                 f.write(json.dumps(item) + "\n")
