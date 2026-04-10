@@ -4,9 +4,6 @@ import sys
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict
-from queue import Queue
-from threading import Lock
-# INSERT_YOUR_CODE
 import requests
 
 import dotenv
@@ -24,8 +21,8 @@ from structure import Structure
 
 if os.path.exists('.env'):
     dotenv.load_dotenv()
-template = open("template.txt", "r").read()
-system = open("system.txt", "r").read()
+template = open("template.txt", "r", encoding="utf-8").read()
+system = open("system.txt", "r", encoding="utf-8").read()
 
 def parse_args():
     """解析命令行参数"""
@@ -100,7 +97,7 @@ def process_single_item(chain, item: Dict, language: str) -> Dict:
     try:
         response: Structure = chain.invoke({
             "language": language,
-            "content": item['summary']
+            "content": item.get("summary", "")
         })
         item['AI'] = response.model_dump()
     except langchain_core.exceptions.OutputParserException as e:
@@ -190,7 +187,7 @@ def main():
 
     # 读取数据
     data = []
-    with open(args.data, "r") as f:
+    with open(args.data, "r", encoding="utf-8") as f:
         for line in f:
             data.append(json.loads(line))
 
