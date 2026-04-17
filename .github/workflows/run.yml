@@ -292,8 +292,6 @@ jobs:
         
         # 复制数据文件到临时目录 / Copy data files to temporary directory
         cp -r data/* /tmp/data_files/data/ 2>/dev/null || true
-        cp assets/file-list.txt /tmp/data_files/assets/ 2>/dev/null || true
-        
         echo "数据文件已保存到临时目录 / Data files saved to temporary directory"
 
     - name: Setup and commit to data branch
@@ -336,7 +334,10 @@ jobs:
         # 确保目录存在 / Ensure directories exist
         mkdir -p data assets
         cp -r /tmp/data_files/data/* data/ 2>/dev/null || true
-        cp /tmp/data_files/assets/file-list.txt assets/ 2>/dev/null || true
+        
+        # 在 data 分支上基于完整历史数据重新生成文件列表
+        # Regenerate the file list from the full historical data branch contents
+        find data -maxdepth 1 -type f -name "*.jsonl" -printf "%f\n" | sort > assets/file-list.txt
         
         # 只添加数据文件 / Only add data files
         git add data/* 2>/dev/null || true

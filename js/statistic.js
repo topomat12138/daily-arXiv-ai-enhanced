@@ -153,7 +153,7 @@ async function fetchAvailableDates() {
       return [];
     }
     const text = await response.text();
-    const files = text.trim().split('\n');
+    const files = text.trim() ? text.trim().split('\n') : [];
 
     const dateRegex = /(\d{4}-\d{2}-\d{2})_AI_enhanced_(English|Chinese)\.jsonl/;
     const dateLanguageMap = new Map(); // Store date -> available languages

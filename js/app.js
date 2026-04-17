@@ -2,6 +2,7 @@ let currentDate = '';
 let availableDates = [];
 let currentView = 'grid'; // 'grid' 或 'list'
 let currentCategory = 'all';
+let currentTopicTag = 'all';
 let paperData = {};
 let flatpickrInstance = null;
 let isRangeMode = false;
@@ -128,6 +129,33 @@ function renderFilterTags() {
       }
     });
   }
+}
+
+function parseTopicTags(tags) {
+  if (!tags) {
+    return [];
+  }
+
+  const rawTags = Array.isArray(tags) ? tags : String(tags).split(/[,，;；]/);
+  const seen = new Set();
+  const parsedTags = [];
+
+  rawTags.forEach(tag => {
+    const normalizedTag = String(tag).trim().replace(/^#/, '');
+    const key = normalizedTag.toLowerCase();
+    if (normalizedTag && !seen.has(key)) {
+      seen.add(key);
+      parsedTags.push(normalizedTag);
+    }
+  });
+
+  return parsedTags;
+}
+
+function renderTagChips(tags, className = 'topic-tag') {
+  return parseTopicTags(tags)
+    .map(tag => `<span class="${className}">${tag}</span>`)
+    .join('');
 }
 
 // 切换关键词过滤
@@ -341,12 +369,22 @@ function initEventListeners() {
   
   // 添加鼠标滚轮横向滚动支持
   const categoryScroll = document.querySelector('.category-scroll');
+  const tagScroll = document.querySelector('.tag-scroll');
   const keywordScroll = document.querySelector('.keyword-scroll');
   const authorScroll = document.querySelector('.author-scroll');
   
   // 为类别滚动添加鼠标滚轮事件
   if (categoryScroll) {
     categoryScroll.addEventListener('wheel', function(e) {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        this.scrollLeft += e.deltaY;
+      }
+    });
+  }
+
+  if (tagScroll) {
+    tagScroll.addEventListener('wheel', function(e) {
       if (e.deltaY !== 0) {
         e.preventDefault();
         this.scrollLeft += e.deltaY;
@@ -539,7 +577,7 @@ async function fetchAvailableDates() {
       return [];
     }
     const text = await response.text();
-    const files = text.trim().split('\n');
+    const files = text.trim() ? text.trim().split('\n') : [];
 
     const dateRegex = /(\d{4}-\d{2}-\d{2})_AI_enhanced_(English|Chinese)\.jsonl/;
     const dateLanguageMap = new Map(); // Store date -> available languages
@@ -596,8 +634,7 @@ function initDatePicker() {
         const dateStr = date.getFullYear() + "-" +
                         String(date.getMonth() + 1).padStart(2, '0') + "-" +
                         String(date.getDate()).padStart(2, '0');
-        // 在 availableDates[0] 之后的日期全部返回 false，否则返回 true
-        return dateStr <= availableDates[0];
+        return !!enabledDatesMap[dateStr];
       }
     ],
     onChange: function(selectedDates, dateStr) {
@@ -610,10 +647,10 @@ function initDatePicker() {
       } else if (!isRangeMode && selectedDates.length === 1) {
         // 处理单个日期选择
         const selectedDate = formatDateForAPI(selectedDates[0]);
-        // if (availableDates.includes(selectedDate)) {
+        if (availableDates.includes(selectedDate)) {
           loadPapersByDate(selectedDate);
           toggleDatePicker();
-        // }
+        }
       }
     }
   });
@@ -674,6 +711,7 @@ async function loadPapersByDate(date) {
         `;
         paperData = {};
         renderCategoryFilter({ sortedCategories: [], categoryCounts: {} });
+        renderTopicTagFilter(getAllTopicTags(paperData));
         return;
       }
       throw new Error(`HTTP ${response.status}`);
@@ -688,6 +726,7 @@ async function loadPapersByDate(date) {
       `;
       paperData = {};
       renderCategoryFilter({ sortedCategories: [], categoryCounts: {} });
+      renderTopicTagFilter(getAllTopicTags(paperData));
       return;
     }
     
@@ -696,6 +735,7 @@ async function loadPapersByDate(date) {
     const categories = getAllCategories(paperData);
     
     renderCategoryFilter(categories);
+    renderTopicTagFilter(getAllTopicTags(paperData));
     
     renderPapers();
   } catch (error) {
@@ -743,6 +783,7 @@ function parseJsonlData(jsonlText, date) {
         id: paper.id,
         method: paper.AI && paper.AI.method ? paper.AI.method : '',
         tags: paper.AI && paper.AI.tags ? paper.AI.tags : '',
+        topicTags: parseTopicTags(paper.AI && paper.AI.tags ? paper.AI.tags : ''),
         code_url: paper.code_url || '',
         code_stars: paper.code_stars || 0,
         code_last_update: paper.code_last_update || ''
@@ -803,10 +844,66 @@ function renderCategoryFilter(categories) {
   });
 }
 
+function getAllTopicTags(data) {
+  const tagCounts = {};
+  let totalPapers = 0;
+
+  Object.values(data).forEach(papers => {
+    papers.forEach(paper => {
+      totalPapers += 1;
+      parseTopicTags(paper.topicTags || paper.tags).forEach(tag => {
+        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+      });
+    });
+  });
+
+  return {
+    sortedTags: Object.keys(tagCounts).sort((a, b) => {
+      const countDiff = tagCounts[b] - tagCounts[a];
+      return countDiff !== 0 ? countDiff : a.localeCompare(b);
+    }),
+    tagCounts,
+    totalPapers
+  };
+}
+
+function renderTopicTagFilter(topicTags) {
+  const container = document.getElementById('topicTags');
+  if (!container) {
+    return;
+  }
+
+  const { sortedTags, tagCounts, totalPapers } = topicTags;
+
+  if (currentTopicTag !== 'all' && !tagCounts[currentTopicTag]) {
+    currentTopicTag = 'all';
+  }
+
+  container.innerHTML = `
+    <button class="topic-button ${currentTopicTag === 'all' ? 'active' : ''}" data-topic-tag="all">All Tags<span class="category-count">${totalPapers}</span></button>
+  `;
+
+  sortedTags.forEach(tag => {
+    const button = document.createElement('button');
+    button.className = `topic-button ${tag === currentTopicTag ? 'active' : ''}`;
+    button.innerHTML = `${tag}<span class="category-count">${tagCounts[tag]}</span>`;
+    button.dataset.topicTag = tag;
+    button.addEventListener('click', () => {
+      filterByTopicTag(tag);
+    });
+
+    container.appendChild(button);
+  });
+
+  container.querySelector('.topic-button[data-topic-tag="all"]').addEventListener('click', () => {
+    filterByTopicTag('all');
+  });
+}
+
 function filterByCategory(category) {
   currentCategory = category;
   
-  document.querySelectorAll('.category-button').forEach(button => {
+  document.querySelectorAll('.category-scroll .category-button').forEach(button => {
     button.classList.toggle('active', button.dataset.category === category);
   });
   
@@ -819,6 +916,21 @@ function filterByCategory(category) {
     behavior: 'smooth'
   });
   
+  renderPapers();
+}
+
+function filterByTopicTag(topicTag) {
+  currentTopicTag = topicTag;
+
+  document.querySelectorAll('#topicTags .topic-button').forEach(button => {
+    button.classList.toggle('active', button.dataset.topicTag === topicTag);
+  });
+
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth'
+  });
+
   renderPapers();
 }
 
@@ -914,6 +1026,13 @@ function renderPapers() {
   
   // 创建匹配论文的集合
   let filteredPapers = [...papers];
+
+  if (currentTopicTag !== 'all') {
+    const selectedTag = currentTopicTag.toLowerCase();
+    filteredPapers = filteredPapers.filter(paper => {
+      return parseTopicTags(paper.topicTags || paper.tags).some(tag => tag.toLowerCase() === selectedTag);
+    });
+  }
 
   // 重置所有论文的匹配状态，避免上次渲染的残留
   filteredPapers.forEach(p => {
@@ -1151,6 +1270,7 @@ function renderPapers() {
     const categoryTags = paper.allCategories ? 
       paper.allCategories.map(cat => `<span class="category-tag">${cat}</span>`).join('') : 
       `<span class="category-tag">${paper.category}</span>`;
+    const topicTagsHtml = renderTagChips(paper.topicTags || paper.tags);
     
     // 组合需要高亮的词：关键词 + 文本搜索
     const titleSummaryTerms = [];
@@ -1203,6 +1323,7 @@ function renderPapers() {
         <div class="paper-card-categories">
           ${categoryTags}
         </div>
+        ${topicTagsHtml ? `<div class="paper-card-topics">${topicTagsHtml}</div>` : ''}
       </div>
       <div class="paper-card-body">
         <p class="paper-card-summary">${highlightedSummary}</p>
@@ -1275,9 +1396,14 @@ function showPaperDetails(paper, paperIndex) {
     ? highlightMatches(paper.method, modalTitleTerms, 'keyword-highlight') 
     : paper.method;
   
-  const highlightedTags = paper.tags && modalTitleTerms.length > 0 
-    ? highlightMatches(paper.tags, modalTitleTerms, 'keyword-highlight') 
-    : paper.tags;
+  const topicTagsHtml = parseTopicTags(paper.topicTags || paper.tags)
+    .map(tag => {
+      const highlightedTag = modalTitleTerms.length > 0
+        ? highlightMatches(tag, modalTitleTerms, 'keyword-highlight')
+        : tag;
+      return `<span class="topic-tag">${highlightedTag}</span>`;
+    })
+    .join('');
   
   // 判断是否需要显示高亮说明
   const showHighlightLegend = activeKeywords.length > 0 || activeAuthors.length > 0;
@@ -1297,7 +1423,7 @@ function showPaperDetails(paper, paperIndex) {
       
       <div class="paper-sections">
         ${paper.method ? `<div class="paper-section"><h4>Method</h4><p>${highlightedMethod}</p></div>` : ''}
-        ${paper.tags ? `<div class="paper-section"><h4>Tags</h4><p>${highlightedTags}</p></div>` : ''}
+        ${paper.tags ? `<div class="paper-section"><h4>Tags</h4><div class="paper-detail-tags">${topicTagsHtml}</div></div>` : ''}
       </div>
       
       ${highlightedAbstract ? `<h3>Abstract</h3><p class="original-abstract">${highlightedAbstract}</p>` : ''}
@@ -1511,6 +1637,7 @@ async function loadPapersByDateRange(startDate, endDate) {
     const categories = getAllCategories(paperData);
     
     renderCategoryFilter(categories);
+    renderTopicTagFilter(getAllTopicTags(paperData));
     
     renderPapers();
   } catch (error) {
