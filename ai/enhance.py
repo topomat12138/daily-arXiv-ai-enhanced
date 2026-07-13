@@ -2,6 +2,7 @@ import os
 import json
 import sys
 import re
+from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict
 import requests
@@ -17,12 +18,53 @@ from langchain.prompts import (
     SystemMessagePromptTemplate,
     HumanMessagePromptTemplate,
 )
-from structure import Structure
+from structure import Structure, normalize_term_list
 
 if os.path.exists('.env'):
     dotenv.load_dotenv()
 template = open("template.txt", "r", encoding="utf-8").read()
 system = open("system.txt", "r", encoding="utf-8").read()
+
+DEFAULT_AI_FIELDS = {
+    "tldr": "Summary generation failed",
+    "method": "Method extraction failed",
+    "tags": [],
+    "specific_terms": [],
+}
+
+
+def normalize_ai_output(ai_data=None, *, tldr_fallback=None, method_fallback=None) -> Dict:
+    """Return a complete, type-stable AI payload for every processing path."""
+    if hasattr(ai_data, "model_dump"):
+        ai_data = ai_data.model_dump()
+    if not isinstance(ai_data, Mapping):
+        ai_data = {}
+
+    tldr_fallback = tldr_fallback or DEFAULT_AI_FIELDS["tldr"]
+    method_fallback = method_fallback or DEFAULT_AI_FIELDS["method"]
+
+    tldr = ai_data.get("tldr", tldr_fallback)
+    method = ai_data.get("method", method_fallback)
+    if not isinstance(tldr, str):
+        tldr = tldr_fallback if tldr is None else str(tldr)
+    if not isinstance(method, str):
+        method = method_fallback if method is None else str(method)
+
+    try:
+        tags = normalize_term_list(ai_data.get("tags"))
+    except (TypeError, ValueError):
+        tags = []
+    try:
+        specific_terms = normalize_term_list(ai_data.get("specific_terms"))
+    except (TypeError, ValueError):
+        specific_terms = []
+
+    return {
+        "tldr": tldr,
+        "method": method,
+        "tags": tags,
+        "specific_terms": specific_terms,
+    }
 
 def parse_args():
     """解析命令行参数"""
@@ -87,19 +129,12 @@ def process_single_item(chain, item: Dict, language: str) -> Dict:
         item.update(code_info)
 
     """处理单个数据项"""
-    # Default structure with meaningful fallback values
-    default_ai_fields = {
-        "tldr": "Summary generation failed",
-        "method": "Method extraction failed",
-        "tags": "Unavailable"
-    }
-    
     try:
         response: Structure = chain.invoke({
             "language": language,
             "content": item.get("summary", "")
         })
-        item['AI'] = response.model_dump()
+        item['AI'] = normalize_ai_output(response)
     except langchain_core.exceptions.OutputParserException as e:
         # 尝试从错误信息中提取 JSON 字符串并修复
         error_msg = str(e)
@@ -116,18 +151,15 @@ def process_single_item(chain, item: Dict, language: str) -> Dict:
             except Exception as json_e:
                 print(f"Failed to parse JSON for {item.get('id', 'unknown')}: {json_e}", file=sys.stderr)
         
-        # Merge partial data with defaults to ensure all fields exist
-        item['AI'] = {**default_ai_fields, **partial_data}
-        print(f"Using partial AI data for {item.get('id', 'unknown')}: {list(partial_data.keys())}", file=sys.stderr)
+        item['AI'] = normalize_ai_output(partial_data)
+        recovered_keys = list(partial_data.keys()) if isinstance(partial_data, Mapping) else []
+        print(f"Using partial AI data for {item.get('id', 'unknown')}: {recovered_keys}", file=sys.stderr)
     except Exception as e:
         # Catch any other exceptions and provide default values
         print(f"Unexpected error for {item.get('id', 'unknown')}: {e}", file=sys.stderr)
-        item['AI'] = default_ai_fields
-    
-    # Final validation to ensure all required fields exist
-    for field in default_ai_fields.keys():
-        if field not in item['AI']:
-            item['AI'][field] = default_ai_fields[field]
+        item['AI'] = normalize_ai_output()
+
+    item['AI'] = normalize_ai_output(item.get('AI'))
 
     return item
 
@@ -166,11 +198,10 @@ def process_all_items(data: List[Dict], model_name: str, language: str, max_work
                 print(f"Item at index {idx} generated an exception: {e}", file=sys.stderr)
                 # Add default AI fields to ensure consistency
                 processed_data[idx] = data[idx]
-                processed_data[idx]['AI'] = {
-                    "tldr": "Processing failed",
-                    "method": "Processing failed",
-                    "tags": "Unavailable"
-                }
+                processed_data[idx]['AI'] = normalize_ai_output(
+                    tldr_fallback="Processing failed",
+                    method_fallback="Processing failed",
+                )
     
     return processed_data
 

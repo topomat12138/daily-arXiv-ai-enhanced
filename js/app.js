@@ -158,6 +158,10 @@ function renderTagChips(tags, className = 'topic-tag') {
     .join('');
 }
 
+function tagsToText(tags) {
+  return parseTopicTags(tags).join(', ');
+}
+
 // 切换关键词过滤
 function toggleKeywordFilter(keyword) {
   const index = activeKeywords.indexOf(keyword);
@@ -255,7 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchGitHubStats() {
   try {
-    const response = await fetch('https://api.github.com/repos/dw-dengwei/daily-arXiv-ai-enhanced');
+    const response = await fetch(DATA_CONFIG.getRepositoryApiUrl());
     const data = await response.json();
     const starCount = data.stargazers_count;
     const forkCount = data.forks_count;
@@ -772,6 +776,9 @@ function parseJsonlData(jsonlText, date) {
       
       const summary = paper.AI && paper.AI.tldr ? paper.AI.tldr : paper.summary;
       
+      const topicTags = parseTopicTags(paper.AI && paper.AI.tags);
+      const specificTerms = parseTopicTags(paper.AI && paper.AI.specific_terms);
+
       result[primaryCategory].push({
         title: paper.title,
         url: paper.abs || paper.pdf || `https://arxiv.org/abs/${paper.id}`,
@@ -782,8 +789,9 @@ function parseJsonlData(jsonlText, date) {
         date: date,
         id: paper.id,
         method: paper.AI && paper.AI.method ? paper.AI.method : '',
-        tags: paper.AI && paper.AI.tags ? paper.AI.tags : '',
-        topicTags: parseTopicTags(paper.AI && paper.AI.tags ? paper.AI.tags : ''),
+        tags: topicTags,
+        topicTags: topicTags,
+        specificTerms: specificTerms,
         code_url: paper.code_url || '',
         code_stars: paper.code_stars || 0,
         code_last_update: paper.code_last_update || ''
@@ -1053,7 +1061,7 @@ function renderPapers() {
         a.summary,
         a.details || '',
         a.method || '',
-        a.tags || ''
+        tagsToText(a.tags)
       ].join(' ').toLowerCase();
       const hayB = [
         b.title,
@@ -1062,7 +1070,7 @@ function renderPapers() {
         b.summary,
         b.details || '',
         b.method || '',
-        b.tags || ''
+        tagsToText(b.tags)
       ].join(' ').toLowerCase();
       const am = hayA.includes(q);
       const bm = hayB.includes(q);
@@ -1080,7 +1088,7 @@ function renderPapers() {
         p.summary,
         p.details || '',
         p.method || '',
-        p.tags || ''
+        tagsToText(p.tags)
       ].join(' ').toLowerCase();
       const matched = hay.includes(q);
       p.isMatched = matched;
@@ -1423,7 +1431,7 @@ function showPaperDetails(paper, paperIndex) {
       
       <div class="paper-sections">
         ${paper.method ? `<div class="paper-section"><h4>Method</h4><p>${highlightedMethod}</p></div>` : ''}
-        ${paper.tags ? `<div class="paper-section"><h4>Tags</h4><div class="paper-detail-tags">${topicTagsHtml}</div></div>` : ''}
+        ${topicTagsHtml ? `<div class="paper-section"><h4>Tags</h4><div class="paper-detail-tags">${topicTagsHtml}</div></div>` : ''}
       </div>
       
       ${highlightedAbstract ? `<h3>Abstract</h3><p class="original-abstract">${highlightedAbstract}</p>` : ''}

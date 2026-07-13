@@ -5,6 +5,24 @@ let flatpickrInstance = null;
 let isRangeMode = false;
 let allPapersData = [];
 
+function normalizeTerms(terms) {
+  if (!terms) {
+    return [];
+  }
+
+  const rawTerms = Array.isArray(terms) ? terms : String(terms).split(/[,，;；、。]/);
+  const seen = new Set();
+  return rawTerms.reduce((normalized, term) => {
+    const cleaned = String(term).trim();
+    const key = cleaned.toLowerCase();
+    if (cleaned && !seen.has(key)) {
+      seen.add(key);
+      normalized.push(cleaned);
+    }
+    return normalized;
+  }, []);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // Check screen size
   const checkScreenSize = () => {
@@ -39,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchGitHubStats() {
   try {
-    const response = await fetch('https://api.github.com/repos/dw-dengwei/daily-arXiv-ai-enhanced');
+    const response = await fetch(DATA_CONFIG.getRepositoryApiUrl());
     const data = await response.json();
     const starCount = data.stargazers_count;
     const forkCount = data.forks_count;
@@ -747,7 +765,8 @@ function parseJsonlData(jsonlText, date) {
         date: date,
         id: paper.id,
         method: paper.AI && paper.AI.method ? paper.AI.method : '',
-        tags: paper.AI && paper.AI.tags ? paper.AI.tags : ''
+        tags: normalizeTerms(paper.AI && paper.AI.tags),
+        specificTerms: normalizeTerms(paper.AI && paper.AI.specific_terms)
       });
     } catch (error) {
       console.error('解析JSON行失败:', error, line);

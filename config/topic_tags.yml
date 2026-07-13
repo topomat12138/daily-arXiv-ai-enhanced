@@ -1,0 +1,17 @@
+# Canonical topic-level vocabulary for future prompt and normalization work.
+# Prefer stable phrases over materials, methods, observables, or device names.
+preferred_max_tags: 6
+
+preferred_tags:
+  - unconventional superconductivity
+  - topological superconductivity
+  - chiral superconductivity
+  - impurity physics
+  - vortex physics
+  - Josephson physics
+  - Majorana physics
+  - quasiparticle interference
+  - pairing symmetry
+  - quantum geometry
+  - altermagnetism
+  - quantum materials

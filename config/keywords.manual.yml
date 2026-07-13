@@ -1,0 +1,31 @@
+weight_2:
+  - chiral d-wave
+  - Majorana bound state
+  - quasiparticle interference
+  - superconducting impurity
+
+weight_1:
+  - quantum geometry
+  - planar Josephson junction
+  - altermagnetism
+  - Andreev bound state
+
+blocked:
+  - superconductivity
+  - topology
+  - quantum
+  - condensed matter
+  - transport
+  - theory
+  - experiment
+
+aliases:
+  Majorana bound state:
+    - Majorana zero mode
+    - MZM
+
+  quasiparticle interference:
+    - QPI
+
+  Josephson junction:
+    - Josephson weak link
