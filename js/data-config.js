@@ -41,5 +41,46 @@ const DATA_CONFIG = {
      */
     getDataUrl: function(filePath) {
         return `${this.getDataBaseUrl()}/${filePath}`;
+    },
+
+    /**
+     * Get the configured repository URL.
+     * @returns {string} GitHub repository URL
+     */
+    getRepositoryUrl: function() {
+        return `https://github.com/${this.repoOwner}/${this.repoName}`;
+    },
+
+    /**
+     * Get the configured repository's GitHub API URL.
+     * @returns {string} GitHub repository API URL
+     */
+    getRepositoryApiUrl: function() {
+        return `https://api.github.com/repos/${this.repoOwner}/${this.repoName}`;
+    },
+
+    /**
+     * Get the configured repository's issues URL.
+     * @returns {string} GitHub issues URL
+     */
+    getIssuesUrl: function() {
+        return `${this.getRepositoryUrl()}/issues`;
+    },
+
+    /**
+     * Assign configured repository URLs to marked page links.
+     * @param {Document|Element} root - Root node containing repository links
+     */
+    applyRepositoryLinks: function(root) {
+        const linkRoot = root || document;
+        linkRoot.querySelectorAll('[data-repository-link]').forEach(link => {
+            link.href = link.dataset.repositoryLink === 'issues'
+                ? this.getIssuesUrl()
+                : this.getRepositoryUrl();
+        });
     }
 };
+
+if (typeof document !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', () => DATA_CONFIG.applyRepositoryLinks());
+}

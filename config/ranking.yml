@@ -1,0 +1,10 @@
+feedback_window_days: 30
+
+feedback_values:
+  focus: 2
+  interested: 1
+
+automatic_keywords:
+  min_distinct_papers: 2
+  weight_2_threshold: 4
+  max_keywords: 30

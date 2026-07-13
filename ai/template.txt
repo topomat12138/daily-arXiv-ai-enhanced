@@ -8,4 +8,5 @@ Abstract:
 Return a compact structured analysis with:
 1. a concise TL;DR,
 2. the main method or approach,
-3. comma-separated topic tags.
+3. a list of stable topic tags,
+4. a separate list of specific technical terms.
