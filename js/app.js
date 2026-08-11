@@ -162,6 +162,45 @@ function tagsToText(tags) {
   return parseTopicTags(tags).join(', ');
 }
 
+function renderFeedbackControls(paper, context = 'card') {
+  const paperId = String(paper.id || '');
+  const currentLabel = FeedbackStore.getLabel(paperId);
+
+  return `
+    <div class="paper-feedback-controls paper-feedback-controls-${context}" data-feedback-paper-id="${paperId}">
+      <button type="button" class="feedback-button feedback-button-focus ${currentLabel === 'focus' ? 'active' : ''}" data-feedback-label="focus" aria-pressed="${currentLabel === 'focus'}">重点阅读</button>
+      <button type="button" class="feedback-button feedback-button-interested ${currentLabel === 'interested' ? 'active' : ''}" data-feedback-label="interested" aria-pressed="${currentLabel === 'interested'}">感兴趣</button>
+    </div>
+  `;
+}
+
+function syncFeedbackControlsForPaper(paperId) {
+  const normalizedPaperId = String(paperId);
+  const currentLabel = FeedbackStore.getLabel(normalizedPaperId);
+
+  document.querySelectorAll('[data-feedback-paper-id]').forEach(controls => {
+    if (controls.dataset.feedbackPaperId !== normalizedPaperId) {
+      return;
+    }
+
+    controls.querySelectorAll('.feedback-button').forEach(button => {
+      const isActive = button.dataset.feedbackLabel === currentLabel;
+      button.classList.toggle('active', isActive);
+      button.setAttribute('aria-pressed', String(isActive));
+    });
+  });
+}
+
+function bindFeedbackControls(root, paper) {
+  root.querySelectorAll('.feedback-button[data-feedback-label]').forEach(button => {
+    button.addEventListener('click', event => {
+      event.stopPropagation();
+      FeedbackStore.toggle(String(paper.id), button.dataset.feedbackLabel, paper.date);
+      syncFeedbackControlsForPaper(paper.id);
+    });
+  });
+}
+
 // 切换关键词过滤
 function toggleKeywordFilter(keyword) {
   const index = activeKeywords.indexOf(keyword);
@@ -240,6 +279,7 @@ function toggleAuthorFilter(author) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  FeedbackStore.load();
   initEventListeners();
   
   fetchGitHubStats();
@@ -1335,6 +1375,7 @@ function renderPapers() {
       </div>
       <div class="paper-card-body">
         <p class="paper-card-summary">${highlightedSummary}</p>
+        ${renderFeedbackControls(paper, 'card')}
         <div class="paper-card-footer">
           <div class="footer-left">
             <span class="paper-card-date">${formatDate(paper.date)}</span>
@@ -1343,6 +1384,8 @@ function renderPapers() {
         </div>
       </div>
     `;
+
+    bindFeedbackControls(paperCard, paper);
     
     paperCard.addEventListener('click', () => {
       currentPaperIndex = index; // 记录当前点击的论文索引
@@ -1424,7 +1467,8 @@ function showPaperDetails(paper, paperIndex) {
       <p><strong>Authors: </strong>${highlightedAuthors}</p>
       <p><strong>Categories: </strong>${categoryDisplay}</p>
       <p><strong>Date: </strong>${formatDate(paper.date)}</p>
-      
+
+      ${renderFeedbackControls(paper, 'modal')}
       
       <h3>TL;DR</h3>
       <p>${highlightedSummary}</p>
@@ -1457,6 +1501,7 @@ function showPaperDetails(paper, paperIndex) {
   
   // Update modal content
   document.getElementById('modalBody').innerHTML = modalContent;
+  bindFeedbackControls(modalBody, paper);
   document.getElementById('paperLink').href = paper.url;
   document.getElementById('pdfLink').href = paper.url.replace('abs', 'pdf');
   document.getElementById('htmlLink').href = paper.url.replace('abs', 'html');

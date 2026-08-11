@@ -749,6 +749,62 @@ main {
   border-radius: 6px;
 }
 
+.paper-feedback-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.paper-feedback-controls-card {
+  margin: 0 0 14px;
+}
+
+.paper-feedback-controls-modal {
+  margin: 4px 0 20px;
+}
+
+.feedback-button {
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background-color: var(--card-bg-color);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  transition: var(--transition);
+  touch-action: manipulation;
+}
+
+.feedback-button:hover {
+  background-color: var(--background-hover);
+  border-color: var(--border-accent);
+}
+
+.feedback-button:focus-visible {
+  outline: 3px solid rgba(102, 126, 234, 0.25);
+  outline-offset: 2px;
+}
+
+.feedback-button-focus.active {
+  background: var(--gradient-primary);
+  border-color: var(--primary-color);
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+.feedback-button-interested.active {
+  background: var(--author-gradient);
+  border-color: var(--author-color);
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+.feedback-button.active:hover {
+  filter: brightness(0.96);
+}
+
 .paper-card-footer {
   margin-top: auto;
   display: flex;
@@ -1355,6 +1411,11 @@ input:checked + .toggle-slider:before {
   .paper-modal-content {
     width: 95%;
     max-height: 85vh;
+  }
+
+  .feedback-button {
+    min-height: 38px;
+    padding: 8px 12px;
   }
   
   .paper-sections {
