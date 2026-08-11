@@ -95,6 +95,41 @@ test('cancellation persists a record with a null label', () => {
   assert.equal(storedState(storage).papers['2607.08845'].label, null);
 });
 
+test('getAll exports cloned records including cancellation without writing storage', () => {
+  const timestamp = '2026-07-13T18:25:00.000Z';
+  const storage = new MockLocalStorage({
+    [STORAGE_KEY]: JSON.stringify({
+      version: STORAGE_VERSION,
+      papers: {
+        '2607.08845': {
+          paper_id: '2607.08845',
+          label: null,
+          source_date: '2026-07-13',
+          updated_at: timestamp
+        }
+      }
+    })
+  });
+  let writeCount = 0;
+  const originalSetItem = storage.setItem.bind(storage);
+  storage.setItem = (key, value) => {
+    writeCount += 1;
+    originalSetItem(key, value);
+  };
+  const store = createFeedbackStore(storage);
+  const records = store.getAll();
+
+  assert.deepEqual(records, [{
+    paper_id: '2607.08845',
+    label: null,
+    source_date: '2026-07-13',
+    updated_at: timestamp
+  }]);
+  records[0].label = 'focus';
+  assert.equal(store.get('2607.08845').label, null);
+  assert.equal(writeCount, 0);
+});
+
 test('paper_id and source_date are preserved', () => {
   const store = createFeedbackStore(new MockLocalStorage());
   const record = store.toggle('2607.08845', 'focus', '2026-07-13');

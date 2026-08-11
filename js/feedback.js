@@ -115,6 +115,11 @@
       return record ? record.label : null;
     }
 
+    function getAll() {
+      ensureLoaded();
+      return Object.values(state.papers).map(record => clone(record));
+    }
+
     function set(paperId, label, sourceDate) {
       ensureLoaded();
       const normalizedPaperId = typeof paperId === 'string' ? paperId.trim() : '';
@@ -156,6 +161,7 @@
     return {
       load: load,
       get: get,
+      getAll: getAll,
       getLabel: getLabel,
       set: set,
       toggle: toggle

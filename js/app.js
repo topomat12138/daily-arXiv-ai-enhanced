@@ -280,6 +280,7 @@ function toggleAuthorFilter(author) {
 
 document.addEventListener('DOMContentLoaded', () => {
   FeedbackStore.load();
+  FeedbackSync.init({ feedbackStore: FeedbackStore, dataConfig: DATA_CONFIG });
   initEventListeners();
   
   fetchGitHubStats();
