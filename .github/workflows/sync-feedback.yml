@@ -1,0 +1,128 @@
+name: Synchronize feedback Issues
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+      - reopened
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: feedback-sync-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  import-feedback:
+    if: >-
+      startsWith(github.event.issue.title, '[feedback-sync]') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out importer source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Preserve importer before switching branches
+        run: cp scripts/import_feedback_issue.py /tmp/import_feedback_issue.py
+
+      - name: Check out latest data branch
+        run: |
+          git fetch --no-tags origin data
+          git checkout --force -B data origin/data
+          mkdir -p feedback
+
+      - name: Validate Issue and merge feedback events
+        id: import
+        continue-on-error: true
+        run: |
+          python /tmp/import_feedback_issue.py \
+            --event-path "$GITHUB_EVENT_PATH" \
+            --ledger feedback/events.jsonl \
+            --result-file /tmp/feedback-import-result.json \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Commit feedback ledger only
+        id: commit
+        if: >-
+          steps.import.outcome == 'success' &&
+          steps.import.outputs.status == 'success' &&
+          steps.import.outputs.new_events != '0'
+        env:
+          NEW_EVENTS: ${{ steps.import.outputs.new_events }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- feedback/events.jsonl
+          test "$(git diff --cached --name-only)" = "feedback/events.jsonl"
+          git commit -m "feedback: import ${NEW_EVENTS} event(s)"
+          echo "created=true" >> "$GITHUB_OUTPUT"
+
+      - name: Push feedback ledger safely
+        if: steps.commit.outputs.created == 'true'
+        run: |
+          for attempt in 1 2 3; do
+            if git push origin HEAD:data; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Unable to push feedback ledger after three attempts" >&2
+              exit 1
+            fi
+            git fetch --no-tags origin data
+            git rebase origin/data
+          done
+
+      - name: Label, report, and close successful import
+        if: >-
+          steps.import.outcome == 'success' &&
+          steps.import.outputs.status == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          NEW_EVENTS: ${{ steps.import.outputs.new_events }}
+          DUPLICATES: ${{ steps.import.outputs.duplicates_ignored }}
+        run: |
+          gh label create feedback-sync --repo "$GITHUB_REPOSITORY" --color 5319e7 --description "Feedback synchronization request" --force
+          gh label create feedback-imported --repo "$GITHUB_REPOSITORY" --color 0e8a16 --description "Feedback successfully imported" --force
+          gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label feedback-sync --add-label feedback-imported
+          gh api --method DELETE "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/labels/feedback-invalid" --silent || true
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Feedback import completed.
+
+          New events: ${NEW_EVENTS}
+          Duplicates ignored: ${DUPLICATES}
+          Ledger: data branch / feedback/events.jsonl"
+          gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY"
+
+      - name: Label and report invalid payload
+        if: >-
+          steps.import.outcome == 'failure' &&
+          steps.import.outputs.status == 'invalid'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          IMPORT_ERROR: ${{ steps.import.outputs.error }}
+        run: |
+          gh label create feedback-sync --repo "$GITHUB_REPOSITORY" --color 5319e7 --description "Feedback synchronization request" --force
+          gh label create feedback-invalid --repo "$GITHUB_REPOSITORY" --color d73a4a --description "Feedback payload needs correction" --force
+          gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label feedback-sync --add-label feedback-invalid
+          gh api --method DELETE "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/labels/feedback-imported" --silent || true
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Feedback import was not completed: ${IMPORT_ERROR}. Please correct the payload and edit the Issue to retry."
+
+      - name: Fail on unexpected importer error
+        if: >-
+          steps.import.outcome == 'failure' &&
+          steps.import.outputs.status != 'invalid'
+        run: |
+          echo "The feedback importer failed unexpectedly" >&2
+          exit 1
